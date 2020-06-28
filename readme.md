@@ -7,7 +7,7 @@ jobs using node.js
 
 #### npm
 ```bash
-npm install --save  zos-ssh-sftp
+npm i --save  zos-ssh-sftp
 ```
 ## Usage
 
