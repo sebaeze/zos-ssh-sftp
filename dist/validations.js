@@ -22,10 +22,10 @@ var validaConfiguration = function validaConfiguration(argConf) {
     } //
 
 
-    if ((!argConf.password || typeof argConf.username != "string") && (!argConf.pathPrivateKey || typeof argConf.pathPrivateKey != "string")) {
+    if ((!argConf.password || typeof argConf.password != "string") && (!argConf.pathPrivateKey || typeof argConf.pathPrivateKey != "string")) {
       outErrors.push(" 'password' or 'pathPrivateKey' should be valid");
     } else {
-      if (typeof argConf.username == "string" && typeof argConf.pathPrivateKey == "string") {
+      if (typeof argConf.password == "string" && typeof argConf.pathPrivateKey == "string") {
         outErrors.push(" Use only one parameter: or 'password' or 'pathPrivateKey'.");
       }
     } //

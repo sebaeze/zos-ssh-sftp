@@ -6,7 +6,7 @@
   "scripts": {
     "build": "babel lib -d dist",
     "prepublishOnly": "npm run build",
-    "test:jcl": "babel-node ./dev/test",
+    "test:jcl": "SET DEBUG=ZOS-SSH-SFTP:*  && babel-node ./dev/test",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

@@ -13,6 +13,8 @@ var _ssh = require("ssh2");
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
 
+function _typeof(obj) { "@babel/helpers - typeof"; if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+
 function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); if (enumerableOnly) symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; }); keys.push.apply(keys, symbols); } return keys; }
 
 function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i] != null ? arguments[i] : {}; if (i % 2) { ownKeys(Object(source), true).forEach(function (key) { _defineProperty(target, key, source[key]); }); } else if (Object.getOwnPropertyDescriptors) { Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)); } else { ownKeys(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } } return target; }
@@ -20,12 +22,9 @@ function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { va
 function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
 //
-var log = require('debug')('ZOS-SSH-SFTP:sshOperations'); //
+var log = require('debug')('ZOS-SSH-SFTP:sshOperations');
 
-
-var logDebug = function logDebug(argLine) {
-  console.log('...logDebug: ', argLine);
-}; //
+var logSSH = require('debug')('ZOS-SSH-SFTP:SSH'); //
 
 
 var options = {
@@ -33,19 +32,19 @@ var options = {
   chunkSize: 32768,
   concurrency: 64,
   step: function step(total_transferred, chunk, total) {
-    console.log("Total Transferred: ".concat(total_transferred, " Chunk: ").concat(chunk) + " Total: ".concat(total));
+    log("Total Transferred: ".concat(total_transferred, " Chunk: ").concat(chunk) + " Total: ".concat(total));
   }
 }; //
 
 var fileCert2String = function fileCert2String(argFile) {
   try {
     //
-    var outStrCert = _fs["default"].readFileSync(argFile.pathPrivateKey, 'utf-8').trim(); //
+    var outStrCert = _fs["default"].readFileSync(argFile, 'utf-8').trim(); //
 
 
     return outStrCert; //
   } catch (errGSC) {
-    console.log('...ERROR: ', errGSC);
+    log('...ERROR: ', errGSC);
     throw errGSC;
   }
 
@@ -62,7 +61,8 @@ var getSShConnection = function getSShConnection(argConfig) {
         keepaliveCountMax: 20,
         host: argConfig.host,
         port: argConfig.port || "22",
-        username: argConfig.username
+        username: argConfig.username,
+        debug: logSSH
       }; //
 
       if (argConfig.pathPrivateKey) {
@@ -82,13 +82,13 @@ var getSShConnection = function getSShConnection(argConfig) {
       sftpConn.on('ready', function () {
         respOk(sftpConn);
       }.bind(this)).on('error', function (argErr) {
-        console.log('error: ', argErr, ';');
+        log('error: ', argErr, ';');
         respRech(argErr);
       }.bind(this)).on('rekey', function () {
-        console.log('...rekey ');
+        log('...rekey ');
       }.bind(this)).connect(configConnection); //
     } catch (errGSC) {
-      console.log('...ERROR: ', errGSC);
+      log('...ERROR: ', errGSC);
       respRech(errGSC);
     }
   });
@@ -106,7 +106,7 @@ var getSftpConn = function getSftpConn(argSSHconn) {
         }
       }.bind(this));
     } catch (errGSC) {
-      console.log('...ERROR: ', errGSC);
+      log('...ERROR: ', errGSC);
       respRech(errGSC);
     }
   });
@@ -117,17 +117,17 @@ var sftpFastPut = function sftpFastPut(argSftp, argFile, argOpt) {
   return new Promise(function (respOk, respRech) {
     try {
       //
-      console.log('...sftpFastPut:: argFile: ', argFile.localFullFilePath, ' argSftp.fastPut: ', argSftp.fastPut);
-      console.log('.....EXISTE:: ', _fs["default"].existsSync(argFile.localFullFilePath), ';'); //
+      log('...sftpFastPut:: argFile: ', argFile.localFullFilePath, ' argSftp.fastPut: ', argSftp.fastPut);
+      log('.....EXISTE:: ', _fs["default"].existsSync(argFile.localFullFilePath), ';'); //
 
       argSftp.fastPut(argFile.localFullFilePath, argFile.remoteFullFilePath, argOpt, function (err) {
         if (err) {
-          console.log('....ERROR EN FASTPUT:: ', err);
+          log('....ERROR EN FASTPUT:: ', err);
           respRech(_objectSpread(_objectSpread({
             resultCode: 1001
           }, argFile), err));
         } else {
-          console.log('File uploaded:: local: ', argFile.fileName, ' remote: ', argFile.remoteFullFilePath, ';');
+          log('File uploaded:: local: ', argFile.fileName, ' remote: ', argFile.remoteFullFilePath, ';');
           respOk(_objectSpread(_objectSpread({
             resultCode: 0
           }, argFile), {}, {
@@ -136,7 +136,7 @@ var sftpFastPut = function sftpFastPut(argSftp, argFile, argOpt) {
         }
       }); //
     } catch (errGSC) {
-      console.log('...ERROR: ', errGSC);
+      log('...ERROR: ', errGSC);
       respRech(_objectSpread(_objectSpread({
         resultCode: 1000
       }, argFile), errGSC));
@@ -157,7 +157,7 @@ var sshCommand = function sshCommand(argSSHconn, argFile, argCmd) {
           }, argFile), errCmd));
         } else {
           stream.on('data', function (data, extended) {
-            console.log('......RESULTADO: ' + data.toString().trim());
+            log('......RESULTADO: ' + data.toString().trim());
 
             if (strLog.length > 0) {
               strLog = strLog + "\n";
@@ -165,7 +165,7 @@ var sshCommand = function sshCommand(argSSHconn, argFile, argCmd) {
 
             strLog = strLog + data.toString().trim();
           }.bind(this)).stderr.on('data', function (data) {
-            // console.log('STDERR: type: ',(typeof data),' data: ',data) ;
+            log('STDERR: type: ', _typeof(data), ' data: ', data);
             respRech(_objectSpread(_objectSpread({
               resultCode: 1005,
               message: "ERROR ejecutando '".concat(argFile[argCmd], "'  ")
@@ -174,7 +174,7 @@ var sshCommand = function sshCommand(argSSHconn, argFile, argCmd) {
             }));
           }.bind(this));
           stream.on('exit', function () {
-            /* console.log('....no exit') ; */
+            log('....Ono exit');
           });
           stream.on('end', function () {
             respOk(_objectSpread(_objectSpread({
@@ -187,7 +187,7 @@ var sshCommand = function sshCommand(argSSHconn, argFile, argCmd) {
         }
       }.bind(this)); //
     } catch (errGSC) {
-      console.log('...ERROR: ', errGSC);
+      log('...ERROR: ', errGSC);
       respRech(_objectSpread(_objectSpread({
         resultCode: 1004
       }, argFile), errGSC));
@@ -206,7 +206,7 @@ var sshOperations = function sshOperations(argConfig) {
 
         for (var posFF = 0; posFF < argArrayFiles.length; posFF++) {
           var fileElem = argArrayFiles[posFF];
-          console.log('...(A) fileElem: ', fileElem);
+          log('...(A) fileElem: ', fileElem);
           fileElem.log = [];
           fileElem.localFullFilePath = _path["default"].join(fileElem.localPath, fileElem.fileName);
           fileElem.remoteFullFilePath = argConfig.remoteTempPath + fileElem.fileName; //fileElem.command            = ` tso -t "delete '${fileElem.remoteDataset}' "  && cp ${fileElem.remoteFullFilePath} "//'${fileElem.remoteDataset}'" `
@@ -215,9 +215,10 @@ var sshOperations = function sshOperations(argConfig) {
             fileElem.dsnDcb = "";
           }
 
-          fileElem.command = " cp -vvv -W \"seqparms='".concat(fileElem.dsnDcb, "'\" ").concat(fileElem.remoteFullFilePath, " \"//'").concat(fileElem.remoteDataset, "'\" ") + " && rm ".concat(fileElem.remoteFullFilePath, " ");
+          var seqparms = fileElem.dsnDcb.length == 0 ? '' : " -W \"seqparms='".concat(fileElem.dsnDcb, "'\" ");
+          fileElem.command = " cp -vvv ".concat(seqparms, "  ").concat(fileElem.remoteFullFilePath, " \"//'").concat(fileElem.remoteDataset, "'\" ") + " && rm ".concat(fileElem.remoteFullFilePath, " ");
           argArrayFiles[posFF] = fileElem;
-          console.log('...(B) fileElem: ', fileElem);
+          log('...(B) fileElem: ', fileElem);
         } //
 
 
@@ -235,7 +236,7 @@ var sshOperations = function sshOperations(argConfig) {
 
           return Promise.all(arrayPromises);
         }).then(function (resuPut) {
-          // console.log('......resuPut: ',resuPut) ;
+          // log('......resuPut: ',resuPut) ;
           var promisesCopy = [];
 
           for (var posF = 0; posF < argArrayFiles.length; posF++) {
@@ -246,7 +247,7 @@ var sshOperations = function sshOperations(argConfig) {
 
           return Promise.all(promisesCopy);
         }).then(function (resCP) {
-          console.log('......resCP: ', resCP);
+          log('......resCP: ', resCP);
           var promisesETT = [];
           var ettExecuted = {};
 
@@ -275,7 +276,7 @@ var sshOperations = function sshOperations(argConfig) {
           respRech(errSFTP);
         }); //
       } catch (errSFD) {
-        console.log('...errSFD: ', errSFD);
+        log('...errSFD: ', errSFD);
         respRech(errSFD);
       }
     });
