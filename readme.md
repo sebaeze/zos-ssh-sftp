@@ -27,9 +27,11 @@ const zosSSHutil      = zosSSH({ host: 'xxx', port:'22', username:'xxxx', passwo
 
 3- Execute it
 
+Supported TSO datasets: PS, PDS and  GDG
+
 ```js
 let files2Transmit = {
-    files: [{ localPath: __dirname, fileName:'test.txt' , remoteTempPath: '/userid/home/temp' ,remoteDataset:'MY.DATA.SET.IN.ZOS'}],
+    files: [{ localPath: __dirname, fileName:'test.txt' , remoteTempPath: '/userid/home/temp' ,remoteDataset:'MY.GDG.BASE(+1)'}],
     postTransferJclOk: 'MY.DATA.PDS(JOBOK)',
     postTransferJclError: 'MY.DATA.PDS(JOBERROR)'
 } ;

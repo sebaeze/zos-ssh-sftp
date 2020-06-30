@@ -27,6 +27,17 @@ var log = require('debug')('ZOS-SSH-SFTP:sshOperations');
 var logSSH = require('debug')('ZOS-SSH-SFTP:SSH'); //
 
 
+var VALID_CONFIGURATION = {
+  keepaliveInterval: true,
+  keepaliveCountMax: true,
+  host: true,
+  port: true,
+  username: true,
+  debug: true,
+  privateKey: true,
+  passphrase: true,
+  password: true
+};
 var options = {
   mode: 511,
   chunkSize: 32768,
@@ -55,10 +66,10 @@ var fileCert2String = function fileCert2String(argFile) {
 var getSShConnection = function getSShConnection(argConfig) {
   return new Promise(function (respOk, respRech) {
     try {
-      //
+      // Defaults
       var configConnection = {
         keepaliveInterval: 2000,
-        keepaliveCountMax: 20,
+        keepaliveCountMax: 40,
         host: argConfig.host,
         port: argConfig.port || "22",
         username: argConfig.username,
@@ -66,7 +77,7 @@ var getSShConnection = function getSShConnection(argConfig) {
       }; //
 
       if (argConfig.pathPrivateKey) {
-        configConnection.privateKey = fileCert2String(argConfig.pathPrivateKey);
+        argConfig.privateKey = fileCert2String(argConfig.pathPrivateKey);
 
         if (argConfig.passphrase) {
           configConnection.passphrase = argConfig.passphrase;
@@ -76,10 +87,18 @@ var getSShConnection = function getSShConnection(argConfig) {
       } //
 
 
+      for (var keyC in argConfig) {
+        if (VALID_CONFIGURATION[keyC] && VALID_CONFIGURATION[keyC] == true) {
+          configConnection[keyC] = argConfig[keyC];
+        }
+      } //
+
+
       log('...configConnection: ', configConnection); //
 
       var sftpConn = new _ssh.Client();
       sftpConn.on('ready', function () {
+        log('.....On.Ready: ');
         respOk(sftpConn);
       }.bind(this)).on('error', function (argErr) {
         log('error: ', argErr, ';');
@@ -202,14 +221,16 @@ var sshOperations = function sshOperations(argConfig) {
     return new Promise(function (respOk, respRech) {
       try {
         //
-        var argArrayFiles = argFiles2Transmit.files || [];
+        var _sshConnection = {};
+        var argArrayFiles = argFiles2Transmit.files || []; //
 
         for (var posFF = 0; posFF < argArrayFiles.length; posFF++) {
           var fileElem = argArrayFiles[posFF];
           log('...(A) fileElem: ', fileElem);
           fileElem.log = [];
           fileElem.localFullFilePath = _path["default"].join(fileElem.localPath, fileElem.fileName);
-          fileElem.remoteFullFilePath = argConfig.remoteTempPath + fileElem.fileName; //fileElem.command            = ` tso -t "delete '${fileElem.remoteDataset}' "  && cp ${fileElem.remoteFullFilePath} "//'${fileElem.remoteDataset}'" `
+          var remotePath = fileElem.remoteTempPath ? fileElem.remoteTempPath : argConfig.remoteTempPath ? argConfig.remoteTempPath : "";
+          fileElem.remoteFullFilePath = remotePath.length > 0 ? _path["default"].join(remotePath, fileElem.fileName) : fileElem.fileName; //fileElem.command            = ` tso -t "delete '${fileElem.remoteDataset}' "  && cp ${fileElem.remoteFullFilePath} "//'${fileElem.remoteDataset}'" `
 
           if (!fileElem.dsnDcb) {
             fileElem.dsnDcb = "";
@@ -222,10 +243,9 @@ var sshOperations = function sshOperations(argConfig) {
         } //
 
 
-        var sshConnection = {};
         getSShConnection(_objectSpread({}, argConfig)).then(function (respConn) {
-          sshConnection = respConn;
-          return getSftpConn(sshConnection);
+          _sshConnection = respConn;
+          return getSftpConn(_sshConnection);
         }).then(function (sftpConn) {
           var arrayPromises = [];
 
@@ -242,7 +262,7 @@ var sshOperations = function sshOperations(argConfig) {
           for (var posF = 0; posF < argArrayFiles.length; posF++) {
             argArrayFiles[posF].log.push(resuPut);
             var objFile = argArrayFiles[posF];
-            promisesCopy.push(sshCommand(sshConnection, objFile, 'command'));
+            promisesCopy.push(sshCommand(_sshConnection, objFile, 'command'));
           }
 
           return Promise.all(promisesCopy);
@@ -257,26 +277,40 @@ var sshOperations = function sshOperations(argConfig) {
 
             if (objFile.postTransferJclOk && !ettExecuted[objFile.postTransferJclOk]) {
               objFile.submitCommand = " submit \"//'".concat(objFile.postTransferJclOk, "'\" ");
-              promisesETT.push(sshCommand(sshConnection, objFile, 'submitCommand'));
+              promisesETT.push(sshCommand(_sshConnection, objFile, 'submitCommand'));
               ettExecuted[objFile.postTransferJclOk] = true;
             }
           }
 
           return Promise.all(promisesETT);
         }).then(function (sftpEnds) {
-          sshConnection.end();
+          _sshConnection.end();
+
           respOk(argArrayFiles);
         })["catch"](function (errSFTP) {
           try {
-            sshConnection.end();
+            _sshConnection.end();
           } catch (errEND) {
             /* no hago nada */
           }
 
           respRech(errSFTP);
+        })["finally"](function (resFFF) {
+          try {
+            _sshConnection.end();
+          } catch (errEND) {
+            /* no hago nada */
+          }
         }); //
       } catch (errSFD) {
         log('...errSFD: ', errSFD);
+
+        try {
+          sshConnection.end();
+        } catch (errEND) {
+          /* no hago nada */
+        }
+
         respRech(errSFD);
       }
     });
