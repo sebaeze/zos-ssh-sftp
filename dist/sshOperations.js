@@ -11,9 +11,9 @@ var _path = _interopRequireDefault(require("path"));
 
 var _ssh = require("ssh2");
 
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+var _gdgLAstVersion = require("./gdgLAstVersion");
 
-function _typeof(obj) { "@babel/helpers - typeof"; if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
 
 function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); if (enumerableOnly) symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; }); keys.push.apply(keys, symbols); } return keys; }
 
@@ -165,6 +165,9 @@ var sftpFastPut = function sftpFastPut(argSftp, argFile, argOpt) {
 
 
 var sshCommand = function sshCommand(argSSHconn, argFile, argCmd) {
+  var argOpt = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {
+    flagRejectOnStderr: true
+  };
   return new Promise(function (respOk, respRech) {
     try {
       //
@@ -183,14 +186,19 @@ var sshCommand = function sshCommand(argSSHconn, argFile, argCmd) {
             }
 
             strLog = strLog + data.toString().trim();
+          }.bind(this)).on('close', function (code, signal) {
+            log('Stream: CLOSE: code: ', code, ' signal: ', signal, ';'); // conn.end();
           }.bind(this)).stderr.on('data', function (data) {
-            log('STDERR: type: ', _typeof(data), ' data: ', data);
-            respRech(_objectSpread(_objectSpread({
-              resultCode: 1005,
-              message: "ERROR ejecutando '".concat(argFile[argCmd], "'  ")
-            }, argFile), {}, {
-              errorSSH: typeof data == "string" ? data : data.toString('utf8')
-            }));
+            log('STDERR: error: ', typeof data == "string" ? data : data.toString('utf8'), ';');
+
+            if (argOpt.flagRejectOnStderr == true) {
+              respRech(_objectSpread(_objectSpread({
+                resultCode: 1005,
+                message: "ERROR ejecutando '".concat(argFile[argCmd], "'  ")
+              }, argFile), {}, {
+                errorSSH: typeof data == "string" ? data : data.toString('utf8')
+              }));
+            }
           }.bind(this));
           stream.on('exit', function () {
             log('....Ono exit');
@@ -229,15 +237,19 @@ var sshOperations = function sshOperations(argConfig) {
           log('...(A) fileElem: ', fileElem);
           fileElem.log = [];
           fileElem.localFullFilePath = _path["default"].join(fileElem.localPath, fileElem.fileName);
-          var remotePath = fileElem.remoteTempPath ? fileElem.remoteTempPath : argConfig.remoteTempPath ? argConfig.remoteTempPath : "";
-          fileElem.remoteFullFilePath = remotePath.length > 0 ? _path["default"].join(remotePath, fileElem.fileName) : fileElem.fileName; //fileElem.command            = ` tso -t "delete '${fileElem.remoteDataset}' "  && cp ${fileElem.remoteFullFilePath} "//'${fileElem.remoteDataset}'" `
+          var remotePath = fileElem.remoteTempPath ? fileElem.remoteTempPath : argConfig.remoteTempPath ? argConfig.remoteTempPath : ""; //let separator               = remotePath.length>0 ? ( (remotePath.indexOf("/")!=-1) ? "/" : "\"  ) : "/" ;
 
-          if (!fileElem.dsnDcb) {
-            fileElem.dsnDcb = "";
-          }
+          fileElem.remoteFullFilePath = remotePath.length > 0 ? remotePath + fileElem.fileName : fileElem.fileName; //fileElem.command            = ` tso -t "delete '${fileElem.remoteDataset}' "  && cp ${fileElem.remoteFullFilePath} "//'${fileElem.remoteDataset}'" `
 
-          var seqparms = fileElem.dsnDcb.length == 0 ? '' : " -W \"seqparms='".concat(fileElem.dsnDcb, "'\" ");
-          fileElem.command = " cp -vvv ".concat(seqparms, "  ").concat(fileElem.remoteFullFilePath, " \"//'").concat(fileElem.remoteDataset, "'\" ") + " && rm ".concat(fileElem.remoteFullFilePath, " ");
+          fileElem.preExecGDG = "";
+
+          if (fileElem.remoteDataset.indexOf("(") != -1 && fileElem.remoteDataset.indexOf(")") != -1) {
+            var gdgBase = fileElem.remoteDataset.substr(0, fileElem.remoteDataset.indexOf("("));
+            log('.....gdgBase: ', gdgBase);
+            fileElem.preExecGDG = "tso -t \"LISTC ENT('".concat(gdgBase, "') NAME \" | grep \"NONVSAM \" | sort | tail -1 ");
+          } //
+
+
           argArrayFiles[posFF] = fileElem;
           log('...(B) fileElem: ', fileElem);
         } //
@@ -245,6 +257,47 @@ var sshOperations = function sshOperations(argConfig) {
 
         getSShConnection(_objectSpread({}, argConfig)).then(function (respConn) {
           _sshConnection = respConn;
+          var promisesGDG = [];
+
+          for (var posF = 0; posF < argArrayFiles.length; posF++) {
+            // argArrayFiles[posF].log.push( resuPut ) ;
+            var objFile = argArrayFiles[posF];
+            promisesGDG.push(sshCommand(_sshConnection, objFile, 'preExecGDG', {
+              flagRejectOnStderr: false
+            }));
+          }
+
+          return Promise.all(promisesGDG);
+        }).then(function (resGDGs) {
+          for (var posF = 0; posF < argArrayFiles.length; posF++) {
+            if (!argArrayFiles[posF].log) {
+              argArrayFiles[posF].log = [];
+            }
+
+            argArrayFiles[posF].log.push(resGDGs);
+            var objFile = argArrayFiles[posF]; //
+
+            if (!objFile.dsnDcb) {
+              objFile.dsnDcb = "";
+            }
+
+            var seqparms = objFile.dsnDcb.length == 0 ? '' : " -W \"seqparms='".concat(objFile.dsnDcb, "'\" "); //
+
+            if (resGDGs.length > 0) {
+              var lastGDGversion = (0, _gdgLAstVersion.gdgLAstVersion)(resGDGs, objFile); // resGDGs.find((fileEnc)=>{ return fileEnc.localFullFilePath==objFile.fileEnc.localFullFilePath ; })
+
+              if (lastGDGversion.length > 0) {
+                objFile.remoteDataset = lastGDGversion;
+              }
+            }
+
+            objFile.command = " cp -vvv ".concat(seqparms, "  ").concat(objFile.remoteFullFilePath, " \"//'").concat(objFile.remoteDataset, "'\" ") + " && rm ".concat(objFile.remoteFullFilePath, " ");
+            log('....(b) objFile.command: ', objFile.command); //
+
+            argArrayFiles[posF] = objFile;
+          } //
+
+
           return getSftpConn(_sshConnection);
         }).then(function (sftpConn) {
           var arrayPromises = [];
