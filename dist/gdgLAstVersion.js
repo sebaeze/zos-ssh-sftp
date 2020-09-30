@@ -11,6 +11,9 @@ exports.gdgLAstVersion = void 0;
 var regexFile = /NONVSAM ---- (.*)/g;
 var regexVersion = /.G(.*)V/g; //
 
+var log = require('debug')('ZOS-SSH-SFTP:GDG_UTIL'); //
+
+
 var gdgLAstVersion = function gdgLAstVersion(argArr, argFile) {
   try {
     //
@@ -18,23 +21,40 @@ var gdgLAstVersion = function gdgLAstVersion(argArr, argFile) {
     var outFileLastVersion = "";
     var fileInterface = argArr.find(function (fileEnc) {
       return fileEnc.localFullFilePath == argFile.localFullFilePath;
-    }); // console.log('...fileInterface: ',fileInterface) ;
+    });
 
-    if (!fileInterface | fileInterface.log.length == 0) {
+    if (!fileInterface) {
       return "";
     } //
 
 
-    outFileLastVersion = regexFile.exec(fileInterface.log); // console.log('...regex::  fileInterface.log: ',fileInterface.log,' outFileLastVersion: ',outFileLastVersion);
+    var logListcat = fileInterface.log || "";
+    outFileLastVersion = regexFile.exec(logListcat || "  ");
 
-    if (outFileLastVersion.length < 2) {
-      console.log('...ERROR en regex::  fileInterface.log: ', fileInterface.log, ' outFileLastVersion: ', outFileLastVersion);
-      throw new Error("ERROR: regex GDG entry");
+    if (outFileLastVersion === null) {
+      outFileLastVersion = [];
     }
 
-    outFileLastVersion = String(outFileLastVersion[1]).trim(); //
+    ;
 
-    var currentVersion = regexVersion.exec(fileInterface.log);
+    if (outFileLastVersion.length < 2) {
+      console.log('...ERROR:: Probably It is not a GDG or there is no entry:: log: ', logListcat, ' outFileLastVersion: ', outFileLastVersion);
+      outFileLastVersion = fileInterface.GDG_BASE + ".G0000V00";
+
+      if (logListcat.length === 0) {
+        logListcat = outFileLastVersion;
+      }
+
+      ; // throw new Error("ERROR: regex GDG entry");
+    } else {
+      outFileLastVersion = String(outFileLastVersion[1]).trim();
+    }
+
+    ; //
+
+    var dsnLastPart = logListcat.split(".");
+    dsnLastPart = dsnLastPart[dsnLastPart.length - 1];
+    var currentVersion = regexVersion.exec(".".concat(dsnLastPart)); //log("..currentVersion: ",currentVersion," logListcat: ",logListcat,";") ;
 
     if (currentVersion && currentVersion.length > 1) {
       outNewVersion = currentVersion[1];
@@ -44,8 +64,12 @@ var gdgLAstVersion = function gdgLAstVersion(argArr, argFile) {
       }
 
       outNewVersion = outNewVersion + 1;
-    } //
+    } else {
+      log("....no existe currentVersion:: ");
+      currentVersion = 1;
+    }
 
+    ; //
 
     outNewVersion = "0000" + outNewVersion;
     outNewVersion = outNewVersion.substr(outNewVersion.length - 4, 4);

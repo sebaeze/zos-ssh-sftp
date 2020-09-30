@@ -254,7 +254,6 @@ var sshOperations = function sshOperations(argConfig) {
 
         for (var posFF = 0; posFF < argArrayFiles.length; posFF++) {
           var fileElem = argArrayFiles[posFF];
-          log('...(A) fileElem: ', fileElem);
           fileElem.log = [];
           fileElem.localFullFilePath = _path["default"].join(fileElem.localPath, fileElem.fileName);
           var remotePath = fileElem.remoteTempPath ? fileElem.remoteTempPath : argConfig.remoteTempPath ? argConfig.remoteTempPath : ""; //let separator               = remotePath.length>0 ? ( (remotePath.indexOf("/")!=-1) ? "/" : "\"  ) : "/" ;
@@ -265,13 +264,13 @@ var sshOperations = function sshOperations(argConfig) {
 
           if (fileElem.remoteDataset.indexOf("(") != -1 && fileElem.remoteDataset.indexOf(")") != -1) {
             var gdgBase = fileElem.remoteDataset.substr(0, fileElem.remoteDataset.indexOf("("));
-            log('.....gdgBase: ', gdgBase);
+            fileElem.GDG_BASE = gdgBase;
             fileElem.preExecGDG = "tso -t \"LISTC ENT('".concat(gdgBase, "') NAME \" | grep \"NONVSAM \" | sort | tail -1 ");
-          } //
+          }
 
+          ; //
 
-          argArrayFiles[posFF] = fileElem;
-          log('...(B) fileElem: ', fileElem);
+          argArrayFiles[posFF] = fileElem; //
         } //
 
 
@@ -311,6 +310,7 @@ var sshOperations = function sshOperations(argConfig) {
               }
             }
 
+            ;
             objFile.command = " cp -vvv ".concat(seqparms, "  ").concat(objFile.remoteFullFilePath, " \"//'").concat(objFile.remoteDataset, "'\" ") + " && rm ".concat(objFile.remoteFullFilePath, " ");
             log('....(b) objFile.command: ', objFile.command); //
 
