@@ -24,7 +24,9 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
 //
 var log = require('debug')('ZOS-SSH-SFTP:sshOperations');
 
-var logSSH = require('debug')('ZOS-SSH-SFTP:SSH'); //
+var logSSH = require('debug')('BORRAR_ZOS-SSH-SFTP:SSH');
+
+var logEvent = require('debug')('ZOS-SSH-SFTP:EVENTS'); //
 
 
 var VALID_CONFIGURATION = {
@@ -40,8 +42,14 @@ var VALID_CONFIGURATION = {
 };
 var options = {
   mode: 511,
+
+  /*
   chunkSize: 32768,
   concurrency: 64,
+  */
+  chunkSize: 3276,
+  concurrency: 4,
+  //
   step: function step(total_transferred, chunk, total) {
     log("Total Transferred: ".concat(total_transferred, " Chunk: ").concat(chunk) + " Total: ".concat(total));
   }
@@ -117,13 +125,25 @@ var getSShConnection = function getSShConnection(argConfig) {
 var getSftpConn = function getSftpConn(argSSHconn) {
   return new Promise(function (respOk, respRech) {
     try {
+      //
       argSSHconn.sftp(function (err, sftpConn) {
         if (err) {
           respRech(err);
         } else {
           respOk(sftpConn);
         }
-      }.bind(this));
+      }.bind(this)); //
+
+      argSSHconn.on('error', function (argErr) {
+        log('ERROR:: getSftpConn: ', argErr, ';');
+        respRech(argErr);
+      }.bind(this)).on('end', function () {
+        log('...ON::END::getSftpConn... ');
+      }.bind(this)).on('WRITE', function (reqID, handle, offset, data) {
+        log('...ON::WRITE::getSftpConn...reqID: ', reqID, ' offset: ', offset, ';');
+      }.bind(this)).on('CLOSE', function (reqID) {
+        log('...ON::CLOSE::getSftpConn...reqID: ', reqID);
+      }.bind(this)); //
     } catch (errGSC) {
       log('...ERROR: ', errGSC);
       respRech(errGSC);

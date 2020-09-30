@@ -2,6 +2,7 @@
 /dev
 dev/
 dev/*.*
+testBig.txt*
 
 # Logs
 logs
