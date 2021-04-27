@@ -1,0 +1,6 @@
+//${jobname} JOB (MYACCT),'TTTTTTTTTTTTTTTTTT',MSGCLASS=X,CLASS=A,
+//         NOTIFY=E
+//**********************************************************************
+//* ${jobDescription}
+//**********************************************************************
+//ST00    EXEC PGM=IEFBR14
