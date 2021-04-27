@@ -43,11 +43,40 @@ zosSSHutil.transmit( files2Transmit )
         console.log('...Error during : ',resErr) ;
     }) ;
 ```
+4- Submit JCL only
 
-4- Options:
-
-*   Debug
+* Indicate jobname and use local template
 
 ```js
-    
+let files2Transmit = {
+    jobs: [
+     { localPath: __dirname,
+            jobname:'HFBTEST',
+            jobDescription: 'Test job submission from String in node.js',
+            fullPathJclTemplate: '/home/user/template/jclTemplate.txt',
+            remoteTempPath: '/userid/home/temp' }],
+} ;
+zosSSHutil.submitJob( files2Transmit )
+    .then((resOk)=>{
+        console.log('...Result of submitJob: ',resOk) ;
+    })
+    .catch((resErr)=>{
+        console.log('...Error during submitJob: ',resErr) ;
+    }) ;
+```
+
+
+5- Options:
+
+*   Debug
+Set environment variable 'DEBUG' to 'ZOS-SSH-SFTP:*' for debug display:
+
+Windows:
+```js
+SET DEBUG=ZOS-SSH-SFTP:*
+```
+
+Linux:
+```js
+export DEBUG=ZOS-SSH-SFTP:*
 ```
