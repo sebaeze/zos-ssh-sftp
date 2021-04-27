@@ -9,13 +9,9 @@ node_modules/
 .npmrc*
 .npmr*
 # Dev
-/dev
 dev/
-dev/*.*
-test/certs/*.*
+test/certs/
 /dist
-dist/
-dist/*.*
 testBig.txt*
 # Logs
 logs
