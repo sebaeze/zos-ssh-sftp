@@ -31,6 +31,7 @@
   },
   "homepage": "https://github.com/sebaeze/zos-ssh-sftp#readme",
   "dependencies": {
+    "dotenv": "^8.2.0",
     "lodash": "^4.17.21",
     "ssh2": "^0.8.9"
   },

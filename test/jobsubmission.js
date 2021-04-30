@@ -1,23 +1,29 @@
 /*
 *
 */
+require('dotenv').config() ;
+//
 const { zosSSH }         = require("../lib/index") ;
 const path               = require("path") ;
 //
 const configSSH = {
-    host: 'riosys2.boulder.ibm.com',
-    port: '22' ,
-    username: 'bill04',
-    pathPrivateKey: path.join( __dirname, './certs/bill04_riosys2_ascii_rsa_priv.key' ),
-    passphrase: 'qaz11qaz'
+    host:           process.env.HOST ,
+    port:           '22' ,
+    username:       process.env.USERNAME ,
+    pathPrivateKey: path.join( __dirname, `./certs/${process.env.CERT}` ),
+    passphrase:     process.env.PASSPHRASE
 } ;
 //
 const zosSSHutil      = zosSSH( configSSH ) ;
-const files2Transmit   = { jobs: [ { localPath: __dirname,
-    jobname:'HFBTS44',
-    jobDescription: 'Test job submission from String in node.js',
-    fullPathJclTemplate: path.join( __dirname, '/template/jobjcl.txt' ) ,
-    remoteTempPath: '/u/bill04' }], } ;
+const files2Transmit   = { 
+    jobs: [
+        {   localPath:           __dirname,
+            jobname:             'HFBTS44',
+            jobDescription:      'Test job submission from String in node.js',
+            fullPathJclTemplate: path.join( __dirname, '/template/jobjcl.txt' ) ,
+            remoteTempPath:      process.env.REMOTE_PATH
+        }
+    ] } ;
 //
 zosSSHutil.submitJob( files2Transmit )
     .then((resOk)=>{
