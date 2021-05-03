@@ -9,7 +9,7 @@ const path               = require("path") ;
 const configSSH = {
     host:           process.env.HOST ,
     port:           '22' ,
-    username:       process.env.USERNAME ,
+    username:       process.env.SSH_USERNAME ,
     pathPrivateKey: path.join( __dirname, `./certs/${process.env.CERT}` ),
     passphrase:     process.env.PASSPHRASE
 } ;
