@@ -7,6 +7,7 @@
     "build": "babel lib -d dist",
     "prepublishOnly": "npm run build",
     "test:jcl": "SET DEBUG=ZOS-SSH-SFTP:*  && babel-node ./test/jobsubmission",
+    "test:gdg": "SET DEBUG=ZOS-SSH-SFTP:*  && babel-node ./test/gdg",
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint ./",
     "lint:fix": "eslint ./ --fix"
@@ -33,7 +34,7 @@
   "dependencies": {
     "dotenv": "^8.2.0",
     "lodash": "^4.17.21",
-    "ssh2": "^0.8.9"
+    "ssh2": "^1.11.0"
   },
   "devDependencies": {
     "@babel/cli": "^7.13.16",

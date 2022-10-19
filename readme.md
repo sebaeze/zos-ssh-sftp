@@ -25,6 +25,24 @@ import { zosSSH }      from 'zos-ssh-sftp' ;
 const zosSSHutil      = zosSSH({ host: 'xxx', port:'22', username:'xxxx', password: 'xxxxx', pathPrivateKey: 'xxxx', passphrase:'xxx' }) ;
 ```
 
+### Config the format of the GDG version to be created
+
+There are 2 ways to create a new GDG version, which can be configured using the following options:
+#### Incremental version: This is the default. It will create a new version using (+1)
+```js
+import { GDG_VERSION_INCREMENTAL }                    from "zos-ssh-sftp/dist/static" ;
+
+const zosSSHutil      = zosSSH({ gdgVersionFormat: GDG_VERSION_INCREMENTAL, host: 'xxx', port:'22', username:'xxxx', password: 'xxxxx', pathPrivateKey: 'xxxx', passphrase:'xxx' }) ;
+```
+
+#### Pre-defined with minutes+seconds. The new version number will have the minutes+seconds embebed in the dsn name.
+```js
+import { GDG_VERSION_MINUTES_SECONDS }                    from "zos-ssh-sftp/dist/static" ;
+
+const zosSSHutil      = zosSSH({ gdgVersionFormat: GDG_VERSION_MINUTES_SECONDS, host: 'xxx', port:'22', username:'xxxx', password: 'xxxxx', pathPrivateKey: 'xxxx', passphrase:'xxx' }) ;
+```
+
+
 3- Execute it
 
 Supported TSO datasets: PS, PDS and  GDG
