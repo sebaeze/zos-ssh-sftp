@@ -22,11 +22,12 @@ export type configProps = {
 ) ;
 //
 export type ssh2Options = {
-    keepaliveInterval: number ;
-    keepaliveCountMax: number ;
+    keepaliveInterval?: number ;
+    keepaliveCountMax?: number ;
     host:              string ;
     port:              string | number ;
     username:          string ;
+    privateKey?:       string ;
     passphrase?:       string ;
     password?:         string ;
     debug?:            (any)=>any
@@ -63,6 +64,10 @@ export interface IsshOperations {
         transmit:  (props:configTransmit) => Promise<any> ,
         submitJob: (props:configTransmit) => Promise<any>
     }
+} ;
+//
+export type IKeyValuePair ={
+    [key:string]: string | number | undefined
 } ;
 //
 export declare const zosSSH:(configOptions:configProps) => mainZosSSH ;

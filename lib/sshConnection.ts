@@ -1,12 +1,10 @@
 /*
 *
 */
-import { configProps, ssh2Options } from "./index" ;
+import { configProps, IKeyValuePair, ssh2Options } from "./index" ;
 import fs              from "fs" ;
 //
-const logSSH   = require('debug')('BORRAR_ZOS-SSH-SFTP:getSShConnection') ;
-const VALID_CONFIGURATION = {keepaliveInterval:true, keepaliveCountMax: true, host: true, port: true, username: true, debug: true, privateKey: true, passphrase: true, password: true} ;
-//
+const log   = require('debug')('ZOS-SSH-SFTP:getSShConnection') ;
 const fileCert2String = (argFile:string) => {
     try {
         //
@@ -15,7 +13,7 @@ const fileCert2String = (argFile:string) => {
         return outStrCert ;
         //
     } catch(errGSC){
-        logSSH('...ERROR: ',errGSC) ;
+        log('...ERROR: ',errGSC) ;
         throw errGSC ;
     } ;
 } ;
@@ -27,10 +25,10 @@ export const getSShConnection:any = (argConfig:configProps) => {
             let configConnection:ssh2Options = {
                 keepaliveInterval : 2000,
                 keepaliveCountMax : 40,
-                host: argConfig.host,
-                port: argConfig.port || "22",
-                username: argConfig.username ,
-                debug: logSSH
+                host:      argConfig.host,
+                port:      argConfig.port || "22",
+                username:  argConfig.username ,
+                debug:     log
             } ;
             //
             if ( argConfig.pathPrivateKey ){
@@ -40,14 +38,13 @@ export const getSShConnection:any = (argConfig:configProps) => {
                 }
             } else {
                 configConnection.password = argConfig.password ;
-            }
+            } ;
             //
-            for ( let keyC in argConfig ){
-                if ( VALID_CONFIGURATION[keyC] && VALID_CONFIGURATION[keyC]==true  ){
-                    configConnection[keyC] = argConfig[keyC] ;
-                }
-            }
-            //
+            const configKeyValue:ssh2Options = argConfig as ssh2Options ;
+            let keyC: keyof ssh2Options ;
+            for ( let keyC in configKeyValue ){
+                configConnection[keyC] = configKeyValue[keyC] ;
+            } ;
             log('...configConnection: ',configConnection) ;
             //
             const sftpConn   = new Client() ;
