@@ -3,7 +3,7 @@
 */
 require('dotenv').config() ;
 //
-const { zosSSH }         = require("../lib/index") ;
+const { zosSSH }         = require("../lib/mainZosSSH") ;
 const { GDG_VERSION_HARDCODED }  = require("../lib/static") ;
 const path               = require("path") ;
 //
