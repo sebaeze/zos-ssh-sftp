@@ -1,18 +1,18 @@
 /*
 *
 */
-import fs                                    from 'fs' ;
+import fs                                    from 'fs'   ;
 import path                                  from 'path' ;
-import { Client }                            from 'ssh2' ;
-import { configProps, configTransmit, GDG_VERSION_INCREMENTAL, IsshOperations, outFileTransmit } from '.';
+import { Client, SFTPWrapper, TransferOptions }                            from 'ssh2' ;
+import { configJobSubmit, configProps, configTransmit, GDG_VERSION_INCREMENTAL, IsshOperations, outFileTransmit } from '.';
 import { gdgLAstVersion }                    from './gdgLAstVersion' ;
 import { OPERATIONS     }                    from './operations'     ;
-import { getSShConnection } from './sshConnection';
+import { getSShConnection }                  from './sshConnection';
 //
 const log      = require('debug')('ZOS-SSH-SFTP:sshOperations') ;
 const logSSH   = require('debug')('BORRAR_ZOS-SSH-SFTP:SSH') ;
 //
-const options = {
+const options:TransferOptions = {
     mode: 0o777,
     /*
     chunkSize: 32768,
@@ -29,64 +29,49 @@ const options = {
     }
 } ;
 //
-const iterateArrayPromises = (argArrayPromises) => {
-    return new Promise((respOk,respRech)=>{
-        try {
-            let outResult = [] ;
-            //
-            argArrayPromises.reduce(function(p, file) {
-                return p.then(function(results) {
-                    return getMp4(file).then(function(data) {
-                        results.push(data);
-                        return results;
-                    });
-                });
-            }, Promise.resolve([]));
-            //
-            respOk(outResult) ;
-        } catch(errIAP){
-            console.log("***ERROR: ",errIAP,";") ;
-            respRech(errIAP) ;
-        } ;
-    }) ;
-} ;
-//
-const getSftpConn = (argSSHconn) => {
-    return new Promise(function(respOk,respRech){
+const getSftpConn = (argSSHconn:Client|undefined) => {
+    return new Promise( (respOk,respRech)=>{
         try {
             //
-            argSSHconn.sftp(function(err, sftpConn ) {
+            if ( argSSHconn==undefined ){
+                respRech({error:"Connection undefined"}) ;
+                return false ;
+            } ;
+            //
+            argSSHconn.sftp( ( err: Error | undefined, sftpConn: SFTPWrapper ) => {
                 if (err) {
                     respRech( err ) ;
                 } else {
                     respOk( sftpConn ) ;
                 }
-            }.bind(this)) ;
+            }) ;
             //
             argSSHconn
-            .on('error',function(argErr){
+            .on('error', (argErr:any) => {
                 log('ERROR:: getSftpConn: ',argErr,';');
                 respRech(argErr) ;
-            }.bind(this))
-            .on('end',function(){
+            })
+            .on('end', ()=>{
                 log('...ON::END::getSftpConn... ');
-            }.bind(this))
-            .on('WRITE',function(reqID, handle, offset, data){
+            }) ;
+            /*
+            .on('WRITE', (reqID, handle, offset, data) => {
                 log('...ON::WRITE::getSftpConn...reqID: ',reqID,' offset: ',offset,';');
-            }.bind(this))
-            .on('CLOSE',function(reqID){
+            })
+            .on('CLOSE', (reqID:number)=>{
                 log('...ON::CLOSE::getSftpConn...reqID: ',reqID);
-            }.bind(this))
+            })
+            */
             //
-        } catch(errGSC){
+        } catch(errGSC:any){
             log('...ERROR: ',errGSC) ;
             respRech(errGSC) ;
         }
     }) ;
 } ;
 //
-const sftpFastPut = (argSftp,argFile,argOpt) => {
-    return new Promise(function(respOk,respRech){
+const sftpFastPut = (argSftp: SFTPWrapper ,argFile:any,argOpt:any) => {
+    return new Promise( (respOk,respRech) => {
         try {
             //
             log('...sftpFastPut:: argFile: ',argFile.localFullFilePath,' argSftp.fastPut: ',argSftp.fastPut) ;
@@ -113,7 +98,7 @@ const sftpFastPut = (argSftp,argFile,argOpt) => {
                 case OPERATIONS.PUT_STRING_TO_FILE:
                     // writeFile(remotePath: string, data: string | Buffer, options: WriteFileOptions, callback?: (err: any) => void): void;
                     log("....voy a writeFile...remote: ",argFile.remoteFullFilePath,";") ;
-                    argSftp.writeFile( argFile.remoteFullFilePath, argFile.stringDataToTransfer , argOpt, function(err) {
+                    argSftp.writeFile( argFile.remoteFullFilePath, argFile.stringDataToTransfer , argOpt, (err:any) => {
                         if (err) {
                             log('....ERROR EN writeFile:: ',err) ;
                             respRech({
@@ -134,7 +119,7 @@ const sftpFastPut = (argSftp,argFile,argOpt) => {
                 break ;
             } ;
             //
-        } catch(errGSC){
+        } catch(errGSC:any){
             log('...ERROR: ',errGSC) ;
             respRech({
                 resultCode: 1000,
@@ -145,12 +130,19 @@ const sftpFastPut = (argSftp,argFile,argOpt) => {
     }) ;
 } ;
 //
-const sshCommand = (argSSHconn,argFile,argCmd,argOpt={flagRejectOnStderr:true}) => {
-    return new Promise(function(respOk,respRech){
+const sshCommand = (argSSHconn:Client|undefined,argFile:any,argCmd:string,argOpt={flagRejectOnStderr:true}) => {
+    return new Promise( (respOk,respRech)=>{
         try {
             //
+            if ( argSSHconn==undefined ){
+                respRech({
+                    error: "connection is undefined"
+                }) ;
+                return false ;
+            } ;
+            //
             let strLog = "" ;
-            argSSHconn.exec(argFile[argCmd], function(errCmd,stream) {
+            argSSHconn.exec(argFile[argCmd], (errCmd,stream) => {
                 if (errCmd) {
                     respRech({
                         resultCode: 1003,
@@ -158,16 +150,15 @@ const sshCommand = (argSSHconn,argFile,argCmd,argOpt={flagRejectOnStderr:true}) 
                         ...errCmd
                     }) ;
                 } else {
-                    stream.on('data', function (data, extended) {
+                    stream.on('data', function (data:any) {
                         log('......RESULTADO: '+data.toString().trim());
                         if ( strLog.length>0 ){ strLog=strLog+"\n"; }
                         strLog = strLog + data.toString().trim() ;
                     }.bind(this))
-                    .on('close', function(code, signal) {
+                    .on('close', (code:number, signal:number) => {
                         log('Stream: CLOSE: code: ',code,' signal: ',signal,';') ;
-                        // conn.end();
-                    }.bind(this))
-                    .stderr.on('data', function(data) {
+                    })
+                    .stderr.on('data', function(data:any) {
                         log('STDERR: error: ',(typeof data=="string" ? data : data.toString('utf8')),';') ;
                         if ( argOpt.flagRejectOnStderr==true ){
                             respRech({
@@ -184,9 +175,9 @@ const sshCommand = (argSSHconn,argFile,argCmd,argOpt={flagRejectOnStderr:true}) 
                     }.bind(this)) ;
                     //
                 }
-            }.bind(this));
+            });
             //
-        } catch(errGSC){
+        } catch(errGSC:any){
             log('...ERROR: ',errGSC) ;
             respRech({
                 resultCode: 1004,
@@ -199,12 +190,14 @@ const sshCommand = (argSSHconn,argFile,argCmd,argOpt={flagRejectOnStderr:true}) 
 //
 export const sshOperations:IsshOperations = (argConfig:configProps) => {
     //
+    console.log("...sshOperations::argConfig : ",argConfig,";") ;
+    //
     const sshTransmit = (argFiles2Transmit:configTransmit) => {
         return new Promise((respOk,respRech)=>{
+            let sshConnection:Client | undefined  ;
             try {
                 //
-                let sshConnection = {} ;
-                let argArrayFiles = argFiles2Transmit.files || [] ;
+                let argArrayFiles:[outFileTransmit] = argFiles2Transmit.files as [outFileTransmit] || [] ;
                 //
                 for ( let posFF=0; posFF<argArrayFiles.length; posFF++ ){
                     let fileElem:outFileTransmit  = argArrayFiles[posFF] ;
@@ -228,7 +221,7 @@ export const sshOperations:IsshOperations = (argConfig:configProps) => {
                 } ;
                 //
                 getSShConnection({...argConfig})
-                    .then((respConn:any)=>{
+                    .then((respConn:Client)=>{
                         //
                         sshConnection = respConn ;
                         let promisesGDG = [] ;
@@ -242,7 +235,7 @@ export const sshOperations:IsshOperations = (argConfig:configProps) => {
                         return Promise.all( promisesGDG ) ;
                         //
                     })
-                    .then((resGDGs)=>{
+                    .then((resGDGs:any)=>{
                         //
                         for ( let posF=0; posF<argArrayFiles.length; posF++ ){
                             if ( !argArrayFiles[posF].log ){ argArrayFiles[posF].log=[]; }
@@ -279,7 +272,7 @@ export const sshOperations:IsshOperations = (argConfig:configProps) => {
                         return getSftpConn(sshConnection) ;
                         //
                     })
-                    .then((sftpConn)=>{
+                    .then((sftpConn:any)=>{
                         let arrayPromises = [] ;
                         for ( let posF=0; posF<argArrayFiles.length; posF++ ){
                             let objFile = argArrayFiles[posF] ;
@@ -287,7 +280,7 @@ export const sshOperations:IsshOperations = (argConfig:configProps) => {
                         }
                         return Promise.all( arrayPromises ) ;
                     })
-                    .then((resuPut)=>{
+                    .then((resuPut:any)=>{
                         // log('......resuPut: ',resuPut) ;
                         let promisesCopy = [] ;
                         for ( let posF=0; posF<argArrayFiles.length; posF++ ){
@@ -297,14 +290,14 @@ export const sshOperations:IsshOperations = (argConfig:configProps) => {
                         }
                         return Promise.all( promisesCopy ) ;
                     })
-                    .then((resCP)=>{
+                    .then((resCP:any)=>{
                         log('......resCP: ',resCP) ;
                         let promisesETT = [] ;
-                        let ettExecuted = {} ;
+                        let ettExecuted:Record<string,boolean> = {} ;
                         for ( let posF=0; posF<argArrayFiles.length; posF++ ){
                             argArrayFiles[posF].log.push( resCP ) ;
                             let objFile = argArrayFiles[posF] ;
-                            if ( objFile.postTransferJclOk && !ettExecuted[objFile.postTransferJclOk] ){
+                            if ( objFile.postTransferJclOk && ettExecuted[objFile.postTransferJclOk]==undefined ){
                                 objFile.submitCommand = ` submit "//'${objFile.postTransferJclOk}'" ` ;
                                 promisesETT.push( sshCommand( sshConnection, objFile, 'submitCommand' ) ) ;
                                 ettExecuted[objFile.postTransferJclOk] = true ;
@@ -312,21 +305,21 @@ export const sshOperations:IsshOperations = (argConfig:configProps) => {
                         }
                         return Promise.all( promisesETT ) ;
                     })
-                    .then((sftpEnds)=>{
-                        sshConnection.end() ;
+                    .then((sftpEnds:any)=>{
+                        if ( sshConnection!=undefined ){ sshConnection.end(); } ;
                         respOk( argArrayFiles ) ;
                     })
-                    .catch((errSFTP)=>{
-                        try { sshConnection.end() ; } catch(errEND){ /* no hago nada */ }
+                    .catch((errSFTP:any)=>{
+                        if ( sshConnection!=undefined ){ sshConnection.end(); } ;
                         respRech(errSFTP) ;
                     })
-                    .finally((resFFF)=>{
-                        try { sshConnection.end() ; } catch(errEND){ /* no hago nada */ }
+                    .finally((resFFF:any)=>{
+                        if ( sshConnection!=undefined ){ sshConnection.end(); } ;
                     }) ;
                 //
             } catch(errSFD){
                 log('...errSFD: ',errSFD) ;
-                try { sshConnection.end() ; } catch(errEND){ /* no hago nada */ }
+                try { if ( sshConnection!=undefined ){ sshConnection.end() ; }} catch(errEND){ /* no hago nada */ }
                 respRech(errSFD) ;
             }
         }) ;
@@ -334,10 +327,10 @@ export const sshOperations:IsshOperations = (argConfig:configProps) => {
     //
     const sshSubmitJob = (argFiles2Transmit:configTransmit) => {
         return new Promise(function(respOk,respRech){
+            let sshConnection:Client | undefined  ;
             try {
                 //
-                let sshConnection = {} ;
-                let argJobs       = argFiles2Transmit.jobs || [] ;
+                let argJobs:configJobSubmit[]  = argFiles2Transmit.jobs || [] ;
                 //
                 for ( let posFF=0; posFF<argJobs.length; posFF++ ){
                     let jobElem = argJobs[posFF] ;
@@ -366,11 +359,11 @@ export const sshOperations:IsshOperations = (argConfig:configProps) => {
                 } ;
                 //
                 getSShConnection({...argConfig})
-                    .then((respConn)=>{
+                    .then((respConn:Client)=>{
                         sshConnection = respConn ;
                         return getSftpConn(sshConnection) ;
                     })
-                    .then((sftpConn)=>{
+                    .then((sftpConn:any)=>{
                         let arrayPromises = [] ;
                         for ( let posF=0; posF<argJobs.length; posF++ ){
                             let objFile = argJobs[posF] ;
@@ -378,7 +371,7 @@ export const sshOperations:IsshOperations = (argConfig:configProps) => {
                         }
                         return Promise.all( arrayPromises ) ;
                     })
-                    .then((resuPut)=>{
+                    .then((resuPut:any)=>{
                         // log('......resuPut: ',resuPut) ;
                         let arrayPromises = [] ;
                         for ( let posF=0; posF<argJobs.length; posF++ ){
@@ -395,22 +388,22 @@ export const sshOperations:IsshOperations = (argConfig:configProps) => {
                         } ;
                         return Promise.all( arrayPromises ) ;
                     })
-                    .then((sftpEnds)=>{
-                        sshConnection.end() ;
+                    .then((sftpEnds:any)=>{
+                        if ( sshConnection!=undefined ){ sshConnection.end() ; } ;
                         respOk( sftpEnds||argJobs ) ;
                     })
-                    .catch((errSFTP)=>{
-                        try { sshConnection.end() ; } catch(errEND){ }
+                    .catch((errSFTP:any)=>{
+                        if ( sshConnection!=undefined ){ sshConnection.end() ; } ;
                         log("ERROR: ",errSFTP) ;
                         respRech(errSFTP) ;
                     })
-                    .finally((resFFF)=>{
-                        try { sshConnection.end() ; } catch(errEND){ }
+                    .finally((resFFF:any)=>{
+                        if ( sshConnection!=undefined ){ sshConnection.end() ; } ;
                     }) ;
                 //
             } catch(errSFD){
                 log('...errSFD: ',errSFD) ;
-                try { sshConnection.end() ; } catch(errEND){}
+                if ( sshConnection!=undefined ){ sshConnection.end() ; } ;
                 respRech(errSFD) ;
             }
         }) ;

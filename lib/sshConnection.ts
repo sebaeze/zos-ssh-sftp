@@ -2,7 +2,9 @@
 *
 */
 import { configProps, IKeyValuePair, ssh2Options } from "./index" ;
-import fs              from "fs" ;
+import fs                                          from "fs" ;
+import { Client }                                  from 'ssh2' ;
+import { ConnectConfig }                           from "ssh2" ;
 //
 const log   = require('debug')('ZOS-SSH-SFTP:getSShConnection') ;
 const fileCert2String = (argFile:string) => {
@@ -22,11 +24,11 @@ export const getSShConnection:any = (argConfig:configProps) => {
     return new Promise(function(respOk,respRech){
         try {
             // Defaults
-            let configConnection:ssh2Options = {
+            let configConnection:ConnectConfig = {
                 keepaliveInterval : 2000,
                 keepaliveCountMax : 40,
                 host:      argConfig.host,
-                port:      argConfig.port || "22",
+                port:      argConfig.port || 22 ,
                 username:  argConfig.username ,
                 debug:     log
             } ;
@@ -42,30 +44,30 @@ export const getSShConnection:any = (argConfig:configProps) => {
             //
             const configKeyValue:ssh2Options = argConfig as ssh2Options ;
             let keyC: keyof ssh2Options ;
-            for ( let keyC in configKeyValue ){
-                configConnection[keyC] = configKeyValue[keyC] ;
+            for ( keyC in configKeyValue ){
+                (configConnection as Record<keyof ssh2Options,any>)[keyC] = configKeyValue[keyC] ;
             } ;
-            log('...configConnection: ',configConnection) ;
+            log('...configConnection: ',configConnection) ; 
             //
-            const sftpConn   = new Client() ;
-            sftpConn
-                .on('ready', function() {
+            const sshConnection:Client   = new Client() ;
+            sshConnection
+                .on('ready', ()=>{
                     log('.....On.Ready: ') ;
-                    respOk( sftpConn ) ;
-                }.bind(this))
-                .on('error',function(argErr){
-                    log('error: ',argErr,';');
+                    respOk( sshConnection ) ;
+                })
+                .on('error', (argErr)=>{
+                    console.log('error: ',argErr,';');
                     respRech(argErr) ;
-                }.bind(this))
-                .on('rekey',function(){
-                    log('...rekey ') ;
-                }.bind(this))
+                })
+                .on('timeout', ()=> {
+                    console.log('...timeout::: ') ;
+                })
                 .connect( configConnection ) ;
             //
         } catch(errGSC){
-            log('...ERROR: ',errGSC) ;
+            console.log('...ERROR: ',errGSC) ;
             respRech(errGSC) ;
-        }
+        } ;
     }) ;
 } ;
 //

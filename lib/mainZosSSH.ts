@@ -7,6 +7,7 @@ import { sshOperations }           from './sshOperations' ;
 export const mainZosSSH = (argConfig:configProps) => {
     try {
         //
+        console.log("...mainZosSSH:: ") ;
         const { submitJob , transmit } = sshOperations(argConfig) ;
         //
         return {

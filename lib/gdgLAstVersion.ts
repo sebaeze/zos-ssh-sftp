@@ -1,24 +1,24 @@
 /*
 *
 */
-import { GDG_VERSION_INCREMENTAL }           from "./static" ;
-import { GDG_VERSION_MINUTES_SECONDS }       from "./static" ;
-import { GDG_VERSION_HARDCODED       }       from "./static" ;
+import { GDG_VERSION_INCREMENTAL, outFileTransmit }           from "../lib" ;
+import { GDG_VERSION_MINUTES_SECONDS }       from "../lib" ;
+import { GDG_VERSION_HARDCODED       }       from "../lib" ;
 //
 const log      = require('debug')('ZOS-SSH-SFTP:GDG_UTIL') ;
 //
-export const gdgLAstVersion = (argArr,argFile,argGDGformat) => {
+export const gdgLAstVersion = (argArr:outFileTransmit[],argFile:outFileTransmit,argGDGformat?:string) => {
     try {
         //
         const  regexFile     = /NONVSAM ---- (.*)/g;
         const  regexVersion  = /.G(.*)V/g;
         //
-        let outNewVersion      = 1  ;
-        let outFileLastVersion = "" ;
+        let outNewVersion:number | string = 1  ;
+        let outFileLastVersion:RegExpExecArray | [] | null | string ;
         let fileInterface  = argArr.find((fileEnc)=>{ return fileEnc.localFullFilePath==argFile.localFullFilePath ; }) ;
         if ( !fileInterface ){ return "" ; }
         //
-        let logListcat     = fileInterface.log || "" ;
+        let logListcat     = (fileInterface.log!=undefined && Array.isArray(fileInterface.log)==true) ? fileInterface.log.join(" ") : "" ;
         outFileLastVersion = regexFile.exec(logListcat||"  ") ;
         if ( outFileLastVersion===null ){
             outFileLastVersion = [] ;
@@ -34,15 +34,15 @@ export const gdgLAstVersion = (argArr,argFile,argGDGformat) => {
             outFileLastVersion = String(outFileLastVersion[1]).trim() ;
         } ;
         //
-        let dsnLastPart    = logListcat.split(".") ;
+        let dsnLastPart:string[] | string = logListcat.split(".") ;
         dsnLastPart        = dsnLastPart[ (dsnLastPart.length-1) ] ;
-        let currentVersion = regexVersion.exec( `.${dsnLastPart}` ) ;
-        if ( currentVersion && currentVersion.length>1 ){
+        let currentVersion: string | string[] | null | undefined = regexVersion.exec( `.${dsnLastPart}` ) ;
+        if ( currentVersion!=undefined  && Array.isArray(currentVersion)===true && currentVersion.length>1 ){
             outNewVersion = currentVersion[1] ;
             if ( typeof outNewVersion=="string" ){ outNewVersion=parseInt(outNewVersion.trim()); }
             outNewVersion = outNewVersion + 1 ;
         } else {
-            currentVersion = 1 ;
+            currentVersion = "1" ;
         } ;
         //
         outNewVersion = "0000" + outNewVersion ;
@@ -74,7 +74,9 @@ export const gdgLAstVersion = (argArr,argFile,argGDGformat) => {
             break ;
         } ;
         //
-        outFileLastVersion = outFileLastVersion.replace(currentVersion[0],`.G${outNewVersion}V`)
+        if ( currentVersion!=undefined && Array.isArray(currentVersion)===true ){
+            outFileLastVersion = outFileLastVersion.replace( currentVersion[0] ,`.G${outNewVersion}V`)
+        } ;
         //
         return outFileLastVersion ;
         //

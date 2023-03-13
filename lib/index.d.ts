@@ -15,6 +15,8 @@ export type configProps = {
     passphrase?:          string ;
     remoteTempPath?:      string ;
     gdgVersionFormat?:    string ;
+    remoteCodePage?:      string ;
+    localCodePage?:       string ;
 } & 
 ( 
     | { password:  string ; pathPrivateKey?:  never  } 
@@ -41,23 +43,43 @@ export type configFileTransmit = {
     remoteDataset:       string , 
 } ;
 //
+export type configJobSubmit = {
+    jobname?:              string ;
+    jobDescription?:       string ;
+    remoteFullFilePath?:   string ;
+    stringDataToTransfer?: string ;
+    fullPathJclTemplate?:  string ;
+    submitCommand?:        string ;
+    sleep?:                string ;
+    localPath:          string ;
+    remoteTempPath:     string ;
+    filename:           string ;
+    remoteDataset:      string ;
+    log?:               any[]  ;
+    filesToDelete?:     string[] ;
+} ;
+//
 export type configTransmit = {
-    files: [ configFileTransmit  ],
-        //postTransferJclOk:    'MY.DATA.PDS(JOBOK)',
-        //postTransferJclError: 'MY.DATA.PDS(JOBERROR)'
+    files?: [ configFileTransmit ] ;
+    jobs?:  [ configJobSubmit ]    ;
 } ;
 export type outFileTransmit = configFileTransmit & {
-    log?:                 Array<T> ;
+    log:                  Array<any> ;
+    dsnDcb?:              string   ;
     localFullFilePath?:   string   ;
     remoteFullFilePath?:  string   ;
     preExecGDG?:          string   ;
+    command?:             string   ;
+    postTransferJclOk?:   string   ;
+    submitCommand?:       string   ;
     GDG_BASE?:            string   ;
 } ;
-//
+/*
 export interface zosSSH {
     submitJob: (any)=>any ,
     transmit:  (any)=>any
 } ;
+*/
 //
 export interface IsshOperations {
     (props:configProps): {
@@ -70,5 +92,7 @@ export type IKeyValuePair ={
     [key:string]: string | number | undefined
 } ;
 //
-export declare const zosSSH:(configOptions:configProps) => mainZosSSH ;
+export {
+    mainZosSSH
+} ;
 //
